@@ -17,8 +17,6 @@ public class DESFireEV2 extends DESFireEV1 {
 
     public byte[] xfer_buffer = new byte[1000000];
 
-    public final static byte INF = 0;
-
     DesfireDiversification desfireDiversification =  new DesfireDiversification();
 
     public enum CommandEv2 {
@@ -227,9 +225,6 @@ public class DESFireEV2 extends DESFireEV1 {
 
         System.arraycopy(damMacKey, 0, result[1], 0, 16);
 
-        //desfire.authenticate(new byte[16], (byte) 0x10, KeyType.AES);
-        //desfire.authenticate(DesfireUtils.hexStringToByteArray("39F1EBF9872B3E999C7062F2E2252DF1"), (byte) 0x10, KeyType.AES);
-
         this.disconnect();
 
         return result;
@@ -248,9 +243,6 @@ public class DESFireEV2 extends DESFireEV1 {
 
         System.out.println("damEncKey was " + DesfireUtils.byteArrayToHexString(damEncKey));
         this.changeKey((byte) 0x12, KeyType.AES, new byte[16], damEncKey);
-
-        //desfire.authenticate(new byte[16], (byte) 0x10, KeyType.AES);
-        //desfire.authenticate(DesfireUtils.hexStringToByteArray("39F1EBF9872B3E999C7062F2E2252DF1"), (byte) 0x10, KeyType.AES);
 
     }
 
@@ -328,10 +320,8 @@ public class DESFireEV2 extends DESFireEV1 {
 
         /*Calculate EncK*/
         byte[] EncK = calcEncK(damEncKey, damDefaultKey, damDefaultKeyVersion);
-        //byte[] EncK = DesfireUtils.hexStringToByteArray("63cee71d7350e41a4fa9b04f0a03176ccb38b2b11f2f596c7506469b2268cae7");
 
         /* Calculate DAMMAC */
-        //byte[] dammac = DesfireUtils.hexStringToByteArray("710ad38edc0f511b");
         byte[] dammac = calcDAMMAC(damMacKey, CommandEv2.DF_CREATE_DELEGATED_APPLICATION.getCode(), aid, damSlotNo, damSlotVersion, quotaLimit, KS1, KS2, KS3, aksVersion, noKeySet, maxKeySize, RollKey, iso_df_id, iso_df_name, EncK);
 
         /*
@@ -506,7 +496,7 @@ public class DESFireEV2 extends DESFireEV1 {
         byte quota_limit = 0;
         byte free_blocks = 0;
 
-        byte[] responseDelegatedInfo = this.GetDelegatedInfo(damSlotNo, aid, dam_slot_version, quota_limit, free_blocks);
+        byte[] responseDelegatedInfo = this.GetDelegatedInfo(damSlotNo);
 
         if (responseDelegatedInfo == null) {
             System.out.println("Desfire 'GetDelegatedInfo'command failed - rc= " + (0xFFFF - (0xFFFF + 1000)));
@@ -523,7 +513,7 @@ public class DESFireEV2 extends DESFireEV1 {
         return true;
     }
 
-    public byte[] calcEncK(byte[] PICCDAMENCKey, byte[] AppDAMDefault, byte KeyVerAppDAMDefault) throws Exception {
+    public byte[] calcEncK(byte[] piccDamEncKey, byte[] appDAMDefault, byte keyVerAppDAMDefault) throws Exception {
 
         byte[] IV = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         Random rand = new Random();
@@ -531,98 +521,94 @@ public class DESFireEV2 extends DESFireEV1 {
         for (int i = 0 ; i < random.length; i++) {
             random[i] = (byte) rand.nextInt(0xFF);
         }
-        byte[] input = new byte[AppDAMDefault.length + 16];
+        byte[] input = new byte[appDAMDefault.length + 16];
 
         System.arraycopy(random, 0, input, 0, 7);
-        System.arraycopy(AppDAMDefault, 0, input, 7, 16);
-        input[input.length - 1] = KeyVerAppDAMDefault;
+        System.arraycopy(appDAMDefault, 0, input, 7, 16);
+        input[input.length - 1] = keyVerAppDAMDefault;
 
         System.out.println("ENCK in " + DesfireUtils.byteArrayToHexString(input));
-        System.out.println("ENCK in " + DesfireUtils.byteArrayToHexString(PICCDAMENCKey));
+        System.out.println("ENCK in " + DesfireUtils.byteArrayToHexString(piccDamEncKey));
         System.out.println("ENCK in " + DesfireUtils.byteArrayToHexString(IV));
 
-        byte[] EncK = desfireDiversification.encrypt(PICCDAMENCKey, input, IV);
+        byte[] EncK = desfireDiversification.encrypt(piccDamEncKey, input, IV);
 
         System.out.println("ENCK  out" + DesfireUtils.byteArrayToHexString(EncK));
 
         return EncK;
     }
 
-    public byte[] calcDAMMAC(byte[] PICCDAMMACKey, byte cmd, int aid, int damSlotNo, byte damSlotVersion, int quotaLimit, byte key_setting_1, byte key_setting_2,
-                             byte key_setting_3, byte aks_version, byte NoKeySets, byte MaxKeySize, byte Aks, int iso_df_id, byte[] iso_df_name, byte[] ENCK) throws Exception {
+    public byte[] calcDAMMAC(byte[] piccDamMacKey, byte cmd, int aid, int damSlotNo, byte damSlotVersion, int quotaLimit, byte key_setting_1, byte key_setting_2,
+                             byte key_setting_3, byte aks_version, byte NoKeySets, byte MaxKeySize, byte Aks, int iso_df_id, byte[] iso_df_name, byte[] enck) throws Exception {
 
         byte[] IV = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         byte[] input;
-        int input_lenght = 0;
+        int inputLength = 0;
 
         if ((key_setting_2 & 0x10) == 0x10) {
-            input_lenght++;
+            inputLength++;
             if ((key_setting_3 & 0x01) == 0x01) {
-                input_lenght++;
+                inputLength++;
                 if ((NoKeySets >= 2) && (NoKeySets <= 16)) {
-                    input_lenght++;
+                    inputLength++;
                     if ((NoKeySets == 0x10) || (NoKeySets == 18)) {
-                        input_lenght++;
+                        inputLength++;
                     }
-                    input_lenght++;
+                    inputLength++;
                 }
             }
         }
 
         if (iso_df_name != null)
-            input = new byte[11 + ENCK.length + (iso_df_name.length + 2) + input_lenght];
+            input = new byte[11 + enck.length + (iso_df_name.length + 2) + inputLength];
         else
-            input = new byte[11 + ENCK.length + input_lenght];
+            input = new byte[11 + enck.length + inputLength];
 
-        input_lenght = 0;
-        input[input_lenght++] = cmd;
-        input[input_lenght++] = (byte) (aid & 0x000000FF);
-        input[input_lenght++] = (byte) ((aid >> 8) & 0x00FF);
-        input[input_lenght++] = (byte) ((aid >> 16) & 0x00FF);
-        input[input_lenght++] = (byte) (damSlotNo & 0x00FF);
-        input[input_lenght++] = (byte) (damSlotNo >> 8);
-        input[input_lenght++] = damSlotVersion;
-        input[input_lenght++] = (byte) (quotaLimit & 0x00FF);
-        input[input_lenght++] = (byte) (quotaLimit >> 8);
-        input[input_lenght++] = key_setting_1;
-        input[input_lenght++] = key_setting_2;
+        inputLength = 0;
+        input[inputLength++] = cmd;
+        input[inputLength++] = (byte) (aid & 0x000000FF);
+        input[inputLength++] = (byte) ((aid >> 8) & 0x00FF);
+        input[inputLength++] = (byte) ((aid >> 16) & 0x00FF);
+        input[inputLength++] = (byte) (damSlotNo & 0x00FF);
+        input[inputLength++] = (byte) (damSlotNo >> 8);
+        input[inputLength++] = damSlotVersion;
+        input[inputLength++] = (byte) (quotaLimit & 0x00FF);
+        input[inputLength++] = (byte) (quotaLimit >> 8);
+        input[inputLength++] = key_setting_1;
+        input[inputLength++] = key_setting_2;
 
         if ((key_setting_2 & 0x10) == 0x10) {
-            input[input_lenght++] = key_setting_3;
+            input[inputLength++] = key_setting_3;
             if ((key_setting_3 & 0x01) == 0x01) {
-                input[input_lenght++] = aks_version;
+                input[inputLength++] = aks_version;
                 if ((NoKeySets >= 2) && (NoKeySets <= 16)) {
-                    input[input_lenght++] = NoKeySets;
-                    if ((NoKeySets == 0x10) || (NoKeySets == 18)) {
-                        input[input_lenght++] = MaxKeySize;
+                    input[inputLength++] = NoKeySets;
+                    if (NoKeySets == 0x10) {
+                        input[inputLength++] = MaxKeySize;
                     }
-                    input[input_lenght++] = Aks;
+                    input[inputLength++] = Aks;
                 }
             }
         }
 
         if (iso_df_name != null) {
-            input[input_lenght++] = (byte) (iso_df_id & 0x00FF);
-            input[input_lenght++] = (byte) (iso_df_id >> 8);
+            input[inputLength++] = (byte) (iso_df_id & 0x00FF);
+            input[inputLength++] = (byte) (iso_df_id >> 8);
 
-            for (int i = 0; i < iso_df_name.length; i++)
-                input[input_lenght++] = iso_df_name[i];
+            for (byte b : iso_df_name) input[inputLength++] = b;
         }
         /* add encK at the end */
-        for (int i = 0; i < ENCK.length; i++)
-            input[input_lenght++] = ENCK[i];
+        for (byte b : enck) input[inputLength++] = b;
 
         System.out.println("DAMMAC  in " + DesfireUtils.byteArrayToHexString(input));
-        System.out.println("DAMMAC  PICCDAMMACKey " + DesfireUtils.byteArrayToHexString(PICCDAMMACKey));
+        System.out.println("DAMMAC  PICCDAMMACKey " + DesfireUtils.byteArrayToHexString(piccDamMacKey));
         System.out.println("DAMMAC  IV " + DesfireUtils.byteArrayToHexString(IV));
 
-        byte[] CMAC_enormous = this.CalculateCMAC(PICCDAMMACKey, IV, input);
+        byte[] CMAC_enormous = this.CalculateCMAC(piccDamMacKey, IV, input);
 
         System.out.println("DAMMAC  out " + DesfireUtils.byteArrayToHexString(CMAC_enormous));
 
         System.out.println("CMAC_enormous calcul soft: " + DesfireUtils.byteArrayToHexString(CMAC_enormous));
-
-        //Console.WriteLine(s);
 
         byte[] CMAC_full = new byte[16];
         System.arraycopy(CMAC_enormous, CMAC_enormous.length - 16, CMAC_full, 0, 16);
@@ -638,7 +624,6 @@ public class DESFireEV2 extends DESFireEV1 {
         }
 
         System.out.println("CMAC calcul soft: " + DesfireUtils.byteArrayToHexString(CMAC));
-        //Console.WriteLine(s);
 
         return CMAC;
     }
@@ -653,13 +638,6 @@ public class DESFireEV2 extends DESFireEV1 {
         byte[] L = desfireDiversification.encrypt(Key, Zeros, IV);
 
         System.out.println(DesfireUtils.byteArrayToHexString(L));
-
-      /*
-      Console.WriteLine("CIPHk(0128)=");
-      for (int k = 0; k< L.Length; k++)
-        Console.Write("-" + String.Format("{0:x02}", L[k]));
-      Console.Write("\n");
-      */
 
         byte[] Key1;
         byte[] Key2;
@@ -682,19 +660,11 @@ public class DESFireEV2 extends DESFireEV1 {
         decal = (L[i] << 1);
         L[i] = (byte) (decal & 0x00FF);
 
-        if (MSB_L >= (byte) 0x80) {
-            L[L.length - 1] ^= Rb;
-        }
+        L[L.length - 1] ^= Rb;
 
         Key1 = L;
 
         System.out.println(DesfireUtils.byteArrayToHexString(Key1));
-      /*
-      Console.Write("Key1=");
-      for (int k = 0; k< L.Length; k++)
-        Console.Write("-" + String.Format("{0:x02}", Key1[k]));
-      Console.Write("\n");
-      */
 
         byte[] tmp = new byte[Key1.length];
         System.arraycopy(Key1, 0, tmp, 0, Key1.length);
@@ -712,17 +682,10 @@ public class DESFireEV2 extends DESFireEV1 {
         }
         decal = (tmp[i] << 1);
         tmp[i] = (byte) (decal & 0x00FF);
-        if (MSB_K1 >= (byte) 0x80)
-            tmp[tmp.length - 1] ^= Rb;
+        tmp[tmp.length - 1] ^= Rb;
 
         Key2 = tmp;
 
-      /*
-      Console.Write("Key2=");
-      for (int k = 0; k< L.Length; k++)
-        Console.Write("-" + String.Format("{0:x02}", Key2[k]));
-      Console.Write("\n");
-      */
         System.out.println(DesfireUtils.byteArrayToHexString(Key2));
 
         byte[] result;
@@ -797,14 +760,12 @@ public class DESFireEV2 extends DESFireEV1 {
                 result = desfireDiversification.encrypt(Key, Message, IV);
             }
         }
-
         return result;
-
     }
 
 
-    private boolean CreateDelegatedApplication_Ex(int aid, int DAMSlotNo, byte damSlotVersion, int quotaLimit, byte key_setting_1, byte key_setting_2, byte key_setting_3,
-                                               byte aks_version, byte NoKeySets, byte MaxKeySize, byte Aks, int iso_df_id, byte[] iso_df_name, int iso_df_namelen, byte[] EncK, byte[] Dammac) {
+    private boolean CreateDelegatedApplication_Ex(int aid, int damSlotNo, byte damSlotVersion, int quotaLimit, byte key_setting_1, byte key_setting_2, byte key_setting_3,
+                                               byte aks_version, byte NoKeySets, byte MaxKeySize, byte Aks, int iso_df_id, byte[] iso_df_name, int iso_df_namelen, byte[] enck, byte[] dammac) {
         long status;
 
 
@@ -817,9 +778,9 @@ public class DESFireEV2 extends DESFireEV1 {
         aid >>= 8;
         xfer_buffer[xfer_length++] = (byte) (aid & 0x000000FF);
 
-        xfer_buffer[xfer_length++] = (byte) (DAMSlotNo & 0x00FF);
-        DAMSlotNo >>= 8;
-        xfer_buffer[xfer_length++] = (byte) (DAMSlotNo & 0x00FF);
+        xfer_buffer[xfer_length++] = (byte) (damSlotNo & 0x00FF);
+        damSlotNo >>= 8;
+        xfer_buffer[xfer_length++] = (byte) (damSlotNo & 0x00FF);
         xfer_buffer[xfer_length++] = damSlotVersion;
         xfer_buffer[xfer_length++] = (byte) (quotaLimit & 0x00FF);
         quotaLimit >>= 8;
@@ -833,7 +794,7 @@ public class DESFireEV2 extends DESFireEV1 {
             xfer_buffer[xfer_length++] = aks_version;
             if ((NoKeySets >= 2) && (NoKeySets <= 16)) {
                 xfer_buffer[xfer_length++] = NoKeySets;
-                if ((NoKeySets == 0x10) || (NoKeySets == 18)) {
+                if (NoKeySets == 0x10) {
                     xfer_buffer[xfer_length++] = MaxKeySize;
                 } else
                     return false;
@@ -882,10 +843,10 @@ public class DESFireEV2 extends DESFireEV1 {
 
         xfer_length = 0;
         xfer_buffer[xfer_length++] = (byte) Command.MORE.getCode();
-        System.arraycopy(EncK, 0, xfer_buffer, 1, EncK.length);
-        xfer_length += EncK.length;
-        System.arraycopy(Dammac, 0, xfer_buffer, xfer_length, Dammac.length);
-        xfer_length += Dammac.length;
+        System.arraycopy(enck, 0, xfer_buffer, 1, enck.length);
+        xfer_length += enck.length;
+        System.arraycopy(dammac, 0, xfer_buffer, xfer_length, dammac.length);
+        xfer_length += dammac.length;
 
         /* Send the 2nd frame to the PICC and get its response. */
         apdu = new byte[xfer_length+5];
@@ -906,7 +867,7 @@ public class DESFireEV2 extends DESFireEV1 {
         return postprocess(response.getBytes(), CommunicationSetting.PLAIN) != null;
     }
 
-    public byte[] GetDelegatedInfo(int DAMSlotNo, int aid, byte dam_slot_version, byte quota_limit, byte free_blocks) {
+    public byte[] GetDelegatedInfo(int DAMSlotNo) {
         long status;
         byte[] responseArray = new byte[6];
         /* Begin the info block with the command code and the number of the key to be changed. */
@@ -942,22 +903,22 @@ public class DESFireEV2 extends DESFireEV1 {
         }
 
         /* Dam slot version. */
-        dam_slot_version = response.getBytes()[0];
+        byte dam_slot_version = response.getBytes()[0];
 
         /* QuotaLimit. */
-        quota_limit = 0;
+        byte quota_limit = 0;
         quota_limit += response.getBytes()[2];
         quota_limit <<= 8;
         quota_limit += response.getBytes()[1];
 
         /* FreeBlocks. */
-        free_blocks = 0;
+        byte free_blocks = 0;
         free_blocks += response.getBytes()[4];
         free_blocks <<= 8;
         free_blocks += response.getBytes()[3];
 
         /* AID. */
-        aid = response.getBytes()[7];
+        int aid = response.getBytes()[7];
         aid <<= 8;
         aid += response.getBytes()[6];
         aid <<= 8;
@@ -974,11 +935,11 @@ public class DESFireEV2 extends DESFireEV1 {
 
     public static String leftPad(String originalString, int length,
                                  char padCharacter) {
-        String paddedString = originalString;
+        StringBuilder paddedString = new StringBuilder(originalString);
         while (paddedString.length() < length) {
-            paddedString = padCharacter + paddedString;
+            paddedString.insert(0, padCharacter);
         }
-        return paddedString;
+        return paddedString.toString();
     }
 
     /**
