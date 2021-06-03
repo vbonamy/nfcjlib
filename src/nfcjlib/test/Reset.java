@@ -18,9 +18,9 @@ import nfcjlib.core.util.DesfireUtils;
 
 class Reset {
 
-	static byte[] damAuthKey = DesfireUtils.hexStringToByteArray("F03C21DF275F23ED2FB0F420B2E15AB9");
-	static byte[] damMacKey = DesfireUtils.hexStringToByteArray("41F23FB097ADDABE1195C0E096204A2F");
-	static byte[] damEncKey = DesfireUtils.hexStringToByteArray("A580B1A4D014DB32219F756F3A2B3471");
+	static byte[] damAuthKey = DesfireUtils.hexStringToByteArray("00000000000000000000000000000000");
+	static byte[] damMacKey = DesfireUtils.hexStringToByteArray("00000000000000000000000000000000");
+	static byte[] damEncKey = DesfireUtils.hexStringToByteArray("00000000000000000000000000000000");
 
 	public static void main(String[] args) throws Exception {
 		DESFireEV2 desfire = new DESFireEV2();
