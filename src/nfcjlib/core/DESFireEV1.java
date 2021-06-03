@@ -39,16 +39,16 @@ public class DESFireEV1 extends SimpleSCR {
 	/** A file/key number that does not exist. */
 	private final static byte FAKE_NO = -1;
 
-	private KeyType ktype;    // type of key used for authentication
-	private byte kno;         // keyNo used for successful authentication
-	private byte[] aid;       // currently selected 3-byte AID
-	private byte[] iv;        // the IV, kept updated between operations (for 3K3DES/AES)
-	private byte[] skey;      // session key: set on successful authentication
+	protected KeyType ktype;    // type of key used for authentication
+	protected byte kno;         // keyNo used for successful authentication
+	protected byte[] aid;       // currently selected 3-byte AID
+	protected byte[] iv;        // the IV, kept updated between operations (for 3K3DES/AES)
+	protected byte[] skey;      // session key: set on successful authentication
 
 	private byte fileNo;      // file number of the last used file (caching)
 	private byte[] fileSett;  // file settings of the last used file (caching)
 
-	private int code;         // response status code of previous command
+	protected int code;         // response status code of previous command
 
 	public DESFireEV1() {
 		reset();
@@ -66,7 +66,7 @@ public class DESFireEV1 extends SimpleSCR {
 	 * Called when the authentication status is changed, such as after a
 	 * change key or AID selection operation.
 	 */
-	private void reset() {
+	protected void reset() {
 		ktype = null;
 		kno = FAKE_NO;
 		//aid = new byte[3];  // authentication resets but AID does not change.
@@ -411,7 +411,7 @@ public class DESFireEV1 extends SimpleSCR {
 	 * @param length	key length
 	 * @param version	the 1-byte version
 	 */
-	private static void setKeyVersion(byte[] a, int offset, int length, byte version) {
+	protected static void setKeyVersion(byte[] a, int offset, int length, byte version) {
 		if (length == 8 || length == 16 || length == 24) {
 			for (int i = offset + length - 1, j = 0; i >= offset; i--, j = (j + 1) % 8) {
 				a[i] &= 0xFE;
@@ -1297,7 +1297,7 @@ public class DESFireEV1 extends SimpleSCR {
 		return postprocess(response.getBytes(), CommunicationSetting.PLAIN) != null;
 	}
 
-	private byte[] preprocess(byte[] apdu, CommunicationSetting commSett) {
+	protected byte[] preprocess(byte[] apdu, CommunicationSetting commSett) {
 		return preprocess(apdu, 0, commSett);
 	}
 
@@ -1394,7 +1394,7 @@ public class DESFireEV1 extends SimpleSCR {
 		return ret;
 	}
 
-	private byte[] postprocess(byte[] apdu, CommunicationSetting commSett) {
+	protected byte[] postprocess(byte[] apdu, CommunicationSetting commSett) {
 		return postprocess(apdu, -1, commSett);
 	}
 
@@ -1907,7 +1907,7 @@ public class DESFireEV1 extends SimpleSCR {
 	// IV sent is the global one but it is better to be explicit about it: can be null for DES/3DES
 	// if IV is null, then it is set to zeros
 	// Sending data that needs encryption.
-	private static byte[] send(byte[] key, byte[] data, KeyType type, byte[] iv) {
+	protected static byte[] send(byte[] key, byte[] data, KeyType type, byte[] iv) {
 		switch (type) {
 		case DES:
 		case TDES:
@@ -1988,7 +1988,7 @@ public class DESFireEV1 extends SimpleSCR {
 	}
 
 	// feedback/debug: a request-response round
-	private static void feedback(CommandAPDU command, ResponseAPDU response) {
+	protected static void feedback(CommandAPDU command, ResponseAPDU response) {
 		out(command);
 		in(response);
 	}
@@ -2200,7 +2200,7 @@ public class DESFireEV1 extends SimpleSCR {
 			this.code = code;
 		}
 
-		private int getCode() {
+		protected int getCode() {
 			return code;
 		}
 
@@ -2263,7 +2263,7 @@ public class DESFireEV1 extends SimpleSCR {
 			this.code = code;
 		}
 
-		private int getCode() {
+		protected int getCode() {
 			return this.code;
 		}
 
@@ -2315,7 +2315,7 @@ public class DESFireEV1 extends SimpleSCR {
 	 * The communication mode can be plain text, plain text with MAC/CMAC, or
 	 * plain text with CRC and full encryption.
 	 */
-	private enum CommunicationSetting {
+	protected enum CommunicationSetting {
 		PLAIN,
 		MACED,
 		ENCIPHERED;
