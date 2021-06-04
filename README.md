@@ -33,8 +33,8 @@ This fork uses new features on MIFARE DESFire EV2 cards but use MIFARE DESFire E
 
 Anything is more simple. You can use test classes.
 
-`src/nfcjlib/test/CreateDamKeysTest` : To load damKeys in your card.
-`src/nfcjlib/test/CreateDamAloneTest` : To load damKeys AND create an example delegated application in your card.
+- `src/nfcjlib/test/CreateDamKeysTest` : To load damKeys in your card.
+- `src/nfcjlib/test/CreateDamAloneTest` : To load damKeys AND create an example delegated application in your card.
 
 ## Acknowledgement
 
